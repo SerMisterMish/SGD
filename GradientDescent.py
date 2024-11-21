@@ -1,10 +1,10 @@
 from numpy.linalg import norm
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 from typing import Callable
 
 
 def GradientDescent(
-    start: ArrayLike,
+    start: NDArray,
     f: Callable,
     f_grad: Callable,
     learning_rate: float = 0.01,

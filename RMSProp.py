@@ -5,7 +5,7 @@ from numpy.typing import NDArray
 from typing import Callable
 
 
-def StochasticGradientDescent(
+def SGD_RMSProp(
     start: NDArray,
     X: NDArray,
     y: NDArray,
@@ -13,13 +13,14 @@ def StochasticGradientDescent(
     L_grad: Callable,
     learning_rate: float = 0.01,
     batch_size: int = 64,
+    decay_rate: float = 0.5,
     max_iter=1000,
     tol=1e-7,
     **kwargs
 ) -> dict:
     curr_point = start
     W_error = None
-
+    run_avg = np.zeros(np.size(start))
     curr_iter = 0
     while W_error is None or (curr_iter < max_iter and W_error >= tol):
         idx = choice(X.shape[0], batch_size, replace=False)
@@ -27,8 +28,9 @@ def StochasticGradientDescent(
 
         curr_value = L(curr_point, batch_X, batch_y, **kwargs)
         curr_grad = L_grad(curr_point, batch_X, batch_y, **kwargs)
+        run_avg = decay_rate * run_avg + (1 - decay_rate) * curr_grad**2
 
-        curr_point -= learning_rate * curr_grad
+        curr_point -= learning_rate / np.sqrt(run_avg) * curr_grad
         W_error = norm(learning_rate * curr_grad)
         curr_iter += 1
 
