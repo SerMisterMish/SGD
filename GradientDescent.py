@@ -9,7 +9,7 @@ def GradientDescent(
     f: Callable | None = None,
     learning_rate: float = 0.01,
     max_iter=1000,
-    tol=1e-7,
+    tol=1e-4,
     **kwargs
 ) -> dict:
     curr_point = start
@@ -17,7 +17,9 @@ def GradientDescent(
     curr_grad = f_grad(curr_point, **kwargs)
 
     curr_iter = 0
-    while curr_iter == 0 or (curr_iter < max_iter and norm(curr_grad) >= tol):
+    while curr_iter == 0 or (
+        curr_iter < max_iter and learning_rate * norm(curr_grad) >= tol
+    ):
         curr_point = curr_point - learning_rate * curr_grad
         curr_grad = f_grad(curr_point, **kwargs)
         curr_iter += 1

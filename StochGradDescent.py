@@ -14,7 +14,7 @@ def StochasticGradientDescent(
     L: Callable | None = None,
     learning_rate: float = 0.01,
     max_iter=1000,
-    tol=1e-7,
+    tol=1e-4,
     **kwargs
 ) -> dict:
     curr_point = start
@@ -32,7 +32,7 @@ def StochasticGradientDescent(
         curr_iter += 1
 
     if L is not None:
-        curr_value = L(curr_point, batch_X, batch_y, **kwargs)
+        curr_value = L(curr_point, X, y, **kwargs)
     return {
         "point": curr_point,
         "L_value": curr_value,
