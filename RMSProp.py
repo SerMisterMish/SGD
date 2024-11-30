@@ -14,9 +14,9 @@ def SGD_RMSProp(
     L: Callable | None = None,
     learning_rate: float = 0.01,
     decay_rate: float = 0.5,
-    use_epoch: bool = False,
+    use_epoch: bool = True,
     max_iter=1000,
-    tol=1e-7,
+    tol=1e-4,
     n_iter_no_change: int = 5,
     **kwargs
 ) -> dict:

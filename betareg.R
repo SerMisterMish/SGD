@@ -1,18 +1,18 @@
 library(betareg)
 library(dplyr)
 
-df <- read.csv("./Data/observations.csv", sep=";") |> select(-Cover_class)
+df.train <- read.csv("./Data/test.csv")
+df.test <- read.csv("./Data/train.csv")
 
-df["Cover"] <- df["Cover"] / 100
-df[,-4] <- scale(df[,-4])
+set.seed(42)
+beta_res <- betareg(Cover ~ Site_id + Visit_id + Species_id, data = df.train, link = "logit")
+print(summary(beta_res))
+coefs <- coefficients(beta_res)
+coefs <- c(coefs[-c(1, length(coefs))], coefs[1], coefs[length(coefs)])
+write(coefs, file = "betareg_res.dat")
 
-set.seed(5)
-train_idx <- sample(1:nrow(df), size = as.integer(0.33 * nrow(df)))
+beta_pred <- predict(beta_res, df.test[, -4])
+cat("RMSE: ", sqrt(mean((beta_pred - df.test$Cover)^2)), "\n")
 
-df.train <- df[train_idx,]
-df.test <- df[-train_idx,]
-beta_res <- betareg(Cover ~ Site_id + Visit_id + Species_id, data = df.train, link="logit")
-summary(beta_res)
-
-beta_pred <- predict(beta_res, df.test[,-4])
-sqrt(mean((beta_pred - df.test$Cover)^2))
+# lin <- lm(Cover ~ Site_id + Visit_id + Species_id, data = df.train)
+# BIC(lin)

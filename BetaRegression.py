@@ -23,13 +23,12 @@ def beta_log_likelihood(
     beta, phi = parameters[:-1], parameters[-1]
     mu = link_inverse(X, beta)
 
-    prod = mu * phi
+    alpha = mu * phi
+    beta = (1 - mu) * phi
     return np.sum(
-        np.log(gamma(phi))
-        - np.log(gamma(prod))
-        - np.log(gamma(phi - prod))
-        + (prod - 1) * np.log(y)
-        + (phi - prod - 1) * np.log(1 - y)
+        (alpha - 1) * np.log(y)
+        + (beta - 1) * np.log(1 - y)
+        + np.log(gamma(phi) / (gamma(alpha) * gamma(beta)))
     )
 
 
