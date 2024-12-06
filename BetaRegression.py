@@ -18,7 +18,7 @@ def beta_log_likelihood(
     X: NDArray,
     y: NDArray,
     link_inverse: Callable[[NDArray, NDArray], float],
-    link_deriv=None,
+    link_deriv: None = None,
 ) -> float:
     beta, phi = parameters[:-1], parameters[-1]
     mu = link_inverse(X, beta)
@@ -37,7 +37,7 @@ def beta_inv_log_likelihood(
     X: NDArray,
     y: NDArray,
     link_inverse: Callable[[NDArray, NDArray], float],
-    link_deriv=None,
+    link_deriv: None = None,
 ) -> float:
     return -beta_log_likelihood(parameters, X, y, link_inverse, link_deriv)
 

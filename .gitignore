@@ -4,3 +4,7 @@ __pycache__/
 *.Rproj.user
 *.Rproj
 *.Rhistory
+*aux/
+*.tar*
+*.gz*
+*.zip*

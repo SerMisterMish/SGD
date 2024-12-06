@@ -1,0 +1,252 @@
+\documentclass{article}
+
+\usepackage[a4paper, includefoot,
+  left=3cm, right=1.5cm,
+  top=2cm, bottom=2cm,
+headsep=1cm, footskip=1cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english, russian]{babel}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{1,1,1}
+
+\lstdefinestyle{mystyle}{
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{magenta},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=b,
+  keepspaces=true,
+  numbers=left,
+  numbersep=5pt,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\begin{document}
+\title{Стохастический градиентный спуск. RMSProp. Бета-регрессия}
+\author{Хромов Никита Андреевич}
+\date{\number\year}
+\maketitle
+
+\section{Стохастический градиентный спуск}
+Ниже приведён исходный код реализации стандартного градиентного спуска для
+оптимизации произвольной функции $f \in C^1(\mathbb{R}^p)$.
+\lstinputlisting[language=python, caption={Реализация градиентного спуска}]{../GradientDescent.py}
+\label{lst:GD}
+Описание параметров функции:
+\begin{itemize}
+  \item \verb|start| "--- начальная точка $x_0$ для оптимизации функции.
+  \item \verb|f_grad| "--- градиент оптимизируемой функции.
+  \item \verb|f| "--- оптимизируемая функция (опционально, используется только чтобы
+    вычислить значение в последней точке оптимизации).
+  \item \verb|learning_rate| "--- длина оптимизационного шага (на что умножается
+    градиент при нахождении новой точки $x_i$).
+  \item \verb|max_iter| "--- максимальное число итераций алгоритма,
+    при достижении этого значения алгоритм прекращает работу.
+  \item \verb|tol| "--- точность для критерия остановки: если
+    $\|x_{i-1} - x_i\| < \verb|tol|$, алгоритм прекращается.
+  \item \verb|**kwargs| "--- дополнительные параметры, передаваемые
+    функциям \verb|f| и \verb|f_grad|.
+\end{itemize}
+Функция возвращает словарь, состоящий из последней точки оптимизационного процесса,
+значения функции \verb|f| в этой точке (если она была передана), значения градиента
+\verb|f_grad| в этой точке и количества итераций алгоритма.
+
+Ниже приведён исходный код реализации стохастического градиентного спуска для
+функций вида $L(W, \mathbf{X}, Y)$, где $W\in \mathbb{R}^p$ "--- параметр, по которому
+происходит оптимизация, $\mathbf{X} \in \mathbb{R}^{n\times p}$ и $Y\in \mathbb{R}^{n}$.
+В частном случае: $L$ "--- лосс-функция в некоторой регрессии, $W$ "--- параметры
+регрессии, $\mathbf{X}$ "--- регрессоры, $Y$ "--- отклики.
+\lstinputlisting[language=python, caption={Реализация стохастического градиентного спуска}]{../StochGradDescent.py}
+\label{lst:SGD}
+Описание параметров функции:
+\begin{itemize}
+  \item \verb|start| "--- начальная точка $w_0$ для оптимизации функции.
+  \item \verb|X|, \verb|y| "--- матрица $\mathbf{X}$ и вектор $Y$, указанного выше вида.
+  \item \verb|L_grad| "--- градиент оптимизируемой функции.
+  \item \verb|batch_size| "--- размер подвыборки регрессоров и откликов,
+    используемых для вычисления градиента на каждом шаге.
+  \item \verb|L| "--- оптимизируемая функция (опционально, используется только чтобы
+    вычислить значение в последней точке оптимизации).
+  \item \verb|learning_rate| "--- длина оптимизационного шага.
+  \item \verb|max_iter| "--- максимальное число итераций алгоритма,
+    при достижении этого значения алгоритм прекращает работу.
+  \item \verb|tol| "--- точность для критерия остановки: если
+    $\|w_{i-1} - w_i\| < \verb|tol|$, алгоритм прекращается.
+  \item \verb|**kwargs| "--- дополнительные параметры, передаваемые
+    функциям \verb|L| и \verb|L_grad|.
+\end{itemize}
+Функция возвращает словарь, состоящий из последней точки оптимизационного процесса,
+значения функции \verb|L| в этой точке (если она была передана), значения градиента
+\verb|L_grad| в этой точке и количества итераций алгоритма.
+Подвыборка регрессоров и откликов на каждом шагу получается выбором
+случайного набора индексов из множества $\overline{0:(n-1)}$ без повторений.
+
+\subsection{Проверка алгоритмов}\label{subsec:sgd-test}
+Оба алгоритма применялись для нахождения минимума лосс-функции линейной регрессии:
+\begin{gather}
+  \label{eq:lin-loss}
+  L(W, \mathbf{X}, Y) = \frac{1}{n} \left\|\mathbf{X}W - Y\right\|^2, \\
+  \label{eq:lin-loss-grad}
+  \nabla L(W, \mathbf{X}, Y) = \frac{2}{n} \mathbf{X}^{\mathrm{T}}(\mathbf{X}W - Y).
+\end{gather}
+В качестве $\mathbf{X}$ было взято 500 независимых реализаций четырёхмерной
+гауссовской величины $\mathrm{N}(\boldsymbol{0}, \mathbf{I}_4)$,
+а вектор $Y$ был вычислен как $Y = \mathbf{X}^{1}W + \boldsymbol{\varepsilon}$,
+где $\mathbf{X}^{1}$ обозначает матрицу $\mathbf{X}$ с дописанным справа столбцом
+из единиц, $W = (2, -3, 1, 0.5, 4)^{\mathrm{T}}$, $\boldsymbol{\varepsilon}$ "---
+выборка из 500 независимых реализаций распределения $\mathrm{N}(0, 1)$.
+Ниже приведена таблица с количеством итераций до сходимости каждого метода (при
+\verb|max_iter| = 1000) и значением квадрата евклидова расстояния от
+полученного оптимизацией набора параметров до истинного значения (при \verb|tol|=1e-4).
+\begin{table}[!ht]
+  \centering
+  \begin{tabular}{|c|c|c|}
+    \hline
+    Метод & Итераций &  $\|\widehat{W} - W\|^2$ \\ \hline
+    Градиентный спуск & 370 & 0.0114 \\ \hline
+    Стохастический градиентный спуск & 1000 & 0.0109 \\ \hline
+  \end{tabular}
+\end{table}
+
+\section{RMSProp}
+Ниже приведён исходный код реализации алгоритма SGD с эвристикой шага RMSProp.
+\lstinputlisting[language=python, caption={Реализация алгоритма SGD с эвристикой шага RMSProp}]{../RMSProp.py}
+Описание параметров функции:
+\begin{itemize}
+  \item \verb|start|, \verb|X|, \verb|y|, \verb|L_grad|,
+    \verb|learning_rate|, \verb|max_iter|, \verb|tol|, \verb|**kwargs| "---
+    то же, что в алгоритме~\ref{lst:SGD}.
+  \item \verb|batch_size| "--- если число с плавающей точкой, то имеет смысл
+    доли выборки, участвующей в оптимизации на каждом шагу, иначе, если целое число, то
+    имеет тот же смысл, что и в алгоритме~\ref{lst:SGD},
+  \item \verb|L| "--- оптимизируемая функция (опционально, используется
+    чтобы критерий остановки мог учитывать изменение в значении оптимизируемой функции и чтобы вычислить значение в последней точке оптимизации).
+    при достижении этого значения алгоритм прекращает работу.
+  \item \verb|decay_rate| "--- параметр скорости <<забывания>> старых градиентов.
+  \item \verb|use_epoch| "--- флаг того, применять ли в оптимизации эпохи (каждую эпоху
+      выбирается перестановка строк \verb|X| и \verb|y| и выполняется последовательный проход
+    по этой перестановке с шагом \verb|batch_size|). Если \verb|use_epoch == True|,
+    то общее число итераций алгоритма может превысить значение \verb|max_iter| на число
+    не большее $n-1$.
+  \item \verb|n_iter_no_change| "--- после скольки эпох без сильного изменения целевой функции
+    (разница между значениями \verb|L| в текущей точке и в точке столько эпох назад меньше
+    \verb|tol|) уменьшить параметр \verb|learning_rate| в 5 раз. Используется только если дана
+    \verb|L| и \verb|use_epoch == True|.
+\end{itemize}
+Функция возвращает то же, что и функция стохастического градиентного спуска.
+
+\subsection{Проверка алгоритма}\label{subsec:rmsprop-test}
+Рассматривалась та же задача, что и в разделе~\ref{subsec:sgd-test}.
+Алгоритм был применён с параметрами\linebreak \verb|batch_size=100| и
+\verb|decay_rate=0.9|, остальные параметры были взяты по умолчанию.
+Также алгоритму была передана функция потерь~\eqref{eq:lin-loss}.
+Процесс оптимизации сошёлся за 555 итераций и квадрат евклидова расстояния
+от истинных параметров до полученных равен 0.0128.
+
+\section{Бета регрессия}
+Все утверждения и формулы взяты из статьи~\cite{Ferrari01082004}.
+
+Пусть $\xi\sim \mathrm{B}(\alpha, \beta)$, тогда плотность $\xi$ имеет вид
+\[
+  f_\xi(x)=\frac{x^{\alpha-1}(1-x)^{\beta-1}}{\mathrm{B}(\alpha, \beta)}, \qquad x \in (0, 1).
+\]
+Для построения бета-регрессии удобнее работать в параметризации через среднее
+$\mu$ и "точность" $\varphi$:
+\begin{gather*}
+  \mu = \frac{\alpha}{\alpha + \beta}, \qquad \varphi = \alpha + \beta,\\
+  \mu \in (0, 1), \qquad \varphi > 0.
+\end{gather*}
+Тогда старые параметры выражаются следующим образом:
+\[
+  \alpha = \mu\varphi, \qquad \beta = (1-\mu)\varphi.
+\]
+Среднее и дисперсия хорошо выражаются через новые параметры:
+\[
+  \mathrm{E}(\xi) = \mu, \qquad \mathrm{D}(\xi) = \frac{\mu(1-\mu)}{1 + \varphi}
+\]
+
+В новой параметризации плотность $\xi$ имеет вид
+\[
+  f_\xi(x) = \frac{\Gamma(\varphi)}{\Gamma(\mu\varphi)\Gamma((1-\mu)\varphi)}x^{\mu\varphi-1}(1-x)^{(1-\mu)\varphi-1}, \qquad x \in (0, 1).
+\]
+
+Пусть $\mathbf{X}\in \mathbb{R}^{n\times p}$ - выборка регрессоров, $Y \in \mathbb{R}^{n}$ - выборка откликов.
+Предполагается, что $y_i \sim \mathrm{B}(\mu_i, \varphi)$, где параметр $\varphi$ неизвестен, а
+$\mu_i$ выражается через регрессоры:
+\[
+  g(\mu_i) = \mathbf{x}^{\mathrm{T}}_i \boldsymbol{\beta}.
+\]
+$g(t)$ - произвольная линк-функция, например логит:
+\[
+  g(\mu_i) = \log\left( \frac{\mu_i}{1-\mu_i} \right) = \mathbf{x}^{\mathrm{T}}_i \boldsymbol{\beta} \implies
+  \mu_i = \frac{e^{\mathbf{x}^{\mathrm{T}}_i \boldsymbol{\beta}}}{1 + e^{\mathbf{x}^{\mathrm{T}}_i \boldsymbol{\beta}}}.
+\]
+
+Логарифм функции правдоподобия имеет вид
+\begin{gather*}
+  L(\mathbf{X}, \beta, \varphi; Y) = \sum_{i=1}^{n}l(\mu_i(\mathbf{x}_i, \beta), \varphi; y_i)\\
+  l(\mu_i(\mathbf{x}_i, \beta), \varphi; y_i) = \log\Gamma(\varphi) - \log\Gamma(\mu_i\varphi) - \log\Gamma((1-\mu_i)\varphi) +
+  (\mu_i\varphi - 1) \log y_i + ((1 - \mu_i)\varphi - 1)\log (1 - y_i).
+\end{gather*}
+
+Пусть $\mathbf{X}$ и $Y$ фиксированы, обозначим
+\[
+  y_i^* = \log(y_i / (1 - y_i)), \qquad \mu_i^*=\psi(\mu_i\varphi) - \psi((1 - \mu_i)\varphi), \qquad
+  \mathbf{T} = \mathrm{diag}\left( 1 / g'(\mu_1), \ldots, 1 / g'(\mu_n) \right),
+\]
+\[
+  Y^* = (y_1^*, \ldots, y_n^*)^{\mathrm{T}}, \qquad \boldsymbol{\mu}^* = (\mu_1^*, \ldots, \mu_n^*)^{\mathrm{T}},
+\]
+где $\psi(z) = (\log\Gamma(z))'$ - дигамма-функция, тогда градиент логарифма функции правдоподобия равен
+$\nabla L(\beta, \varphi) = \left( L_{\beta}^{\mathrm{T}}(\beta, \varphi), L_{\varphi}(\beta, \varphi) \right)^{\mathrm{T}}$, где
+\[
+  L_{\beta}(\beta, \varphi) = \varphi \mathbf{X}^{\mathrm{T}}\mathbf{T}(Y^* - \boldsymbol{\mu^*}),
+\]
+\[
+  L_{\varphi}(\beta, \varphi) = \sum_{i=1}^n
+  \big(
+    \mu_i(y_i^* - \mu_i^*) + \log(1 - y_i) - \psi((1 - \mu_i)\varphi) + \psi(\varphi)
+  \big).
+\]
+
+Ниже приведён исходный код реализации функции правдоподобия, её логарифма и градиента её логарифма
+для бета регрессии.
+\lstinputlisting[language=python, caption={Реализация функции правдоподобия, её логарифма и градиента её логарифма}]{../BetaRegression.py}
+
+\subsection{Проверка алгоритма RMSProp для нахождения параметров бета регрессии}
+Пусть матрица $\mathbf{X}$ равна матрице $\mathbf{X}^1$ из раздела~\ref{subsec:sgd-test},
+а $Y = (y_1, \ldots, y_n)$, где $y_i \sim \mathrm{B}(\mu_i, \varphi)$,
+$\mu_i = g^{-1}(\boldsymbol{x}_i\beta)$, $g(t) = \log(t / (1-t))$,
+$\beta = (0.1, 0.3, 0.01, 0.5, 0.4)^{\mathrm{T}}$, $\varphi = 3$, а $\boldsymbol{x}_i$ "--- $i$-я строка
+матрицы $\mathbf{X}$.
+Оптимизационный алгоритм RMSProp был запущен с параметрами
+\verb|batch_size=50|, \verb|learning_rate=0.01|, \verb|decay_rate=0.1|, и остальными по
+умолчанию (также алгоритму был передан логарифм функции правдоподобия с отрицательным знаком
+в качестве оптимизируемой функции).
+Оптимизационный процесс завершился за 910 итераций и квадрат евклидова расстояния от истинных
+параметров до полученных равен 0.005.
+
+\section{Применение алгоритма RMSProp к данным в модели бета регрессии}
+
+\bibliographystyle{ugost2008}
+\bibliography{main}
+
+\end{document}
