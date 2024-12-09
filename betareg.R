@@ -15,4 +15,5 @@ beta_pred <- predict(beta_res, df.test[, -4])
 cat("RMSE: ", sqrt(mean((beta_pred - df.test$Cover)^2)), "\n")
 
 # lin <- lm(Cover ~ Site_id + Visit_id + Species_id, data = df.train)
+# summary(lin)
 # BIC(lin)
